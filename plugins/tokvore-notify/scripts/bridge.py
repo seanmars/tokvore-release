@@ -2,12 +2,12 @@
 # /// script
 # requires-python = ">=3.10"
 # ///
-"""Claude Code hook -> tokvore /hooks forwarder.
+"""Agent hook -> tokvore /hooks forwarder.
 
 Invoked from hooks.json:
-    uv run bridge.py
+    uv run bridge.py [--client claude|codex]
 
-Reads one Claude Code hook-event JSON on stdin and forwards it VERBATIM to
+Reads one agent hook-event JSON on stdin and forwards it VERBATIM to
 tokvore's loopback `/hooks` endpoint, wrapped in an envelope:
 
     { "client": "claude", "hook": <the raw hook event> }
@@ -18,9 +18,9 @@ of that now lives in the tokvore backend's per-client interpreter, so behavior
 can change without reinstalling the plugin and the backend can do richer parsing
 on the full payload.
 
-`client` is always "claude": this plugin is Claude-specific (each agent ships
-its own hook plugin). The backend routes by this field to the matching
-interpreter; an unknown client is rejected with 400.
+`client` defaults to "claude" and can be selected with `--client`. The backend
+routes by this field to the matching interpreter; an unknown client is rejected
+with 400.
 
 The stdin JSON is parsed only to validate it is well-formed and to re-wrap it
 cleanly (no semantics are read). Every failure is swallowed (exit 0) so a hook
@@ -28,13 +28,15 @@ can never disrupt the session.
 """
 from __future__ import annotations
 
+import argparse
 import json
 import os
 import sys
 import urllib.request
 from pathlib import Path
 
-CLIENT = "claude"  # this plugin only bridges Claude Code; the backend routes on this
+DEFAULT_CLIENT = "claude"
+SUPPORTED_CLIENTS = ("claude", "codex")
 DEFAULT_PORT = 6789  # control-api conventional default, used when settings absent
 
 # Claude Code emits UTF-8 hook JSON; Windows defaults stdin to the OEM code page
@@ -60,23 +62,28 @@ def api_port() -> int:
     return DEFAULT_PORT
 
 
-def envelope(hook: dict) -> dict:
+def envelope(hook: dict, client: str) -> dict:
     """Wrap a raw hook event in the {client, hook} forwarding envelope."""
-    return {"client": CLIENT, "hook": hook}
+    return {"client": client, "hook": hook}
 
 
-def post_hook(hook: dict) -> None:
+def post_hook(hook: dict, client: str) -> None:
     req = urllib.request.Request(
         f"http://127.0.0.1:{api_port()}/hooks",
-        data=json.dumps(envelope(hook)).encode("utf-8"),
-        headers={"Content-Type": "application/json"},
+        data=json.dumps(envelope(hook, client)).encode("utf-8"),
+        headers={"Content-Type": "application/json", "X-TOKVORE-CLIENT": client},
         method="POST",
     )
     urllib.request.urlopen(req, timeout=3).close()
 
 
 def main(argv: list[str]) -> int:
-    if "--selftest" in argv:
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument("--client", choices=SUPPORTED_CLIENTS, default=DEFAULT_CLIENT)
+    parser.add_argument("--selftest", action="store_true")
+    args, _ = parser.parse_known_args(argv)
+
+    if args.selftest:
         return selftest()
     try:
         raw = sys.stdin.read()
@@ -85,18 +92,20 @@ def main(argv: list[str]) -> int:
         # Parse only to validate well-formed JSON and re-wrap cleanly; no
         # semantics are extracted here -- the backend does all interpretation.
         hook = json.loads(raw)
-        post_hook(hook)
+        post_hook(hook, args.client)
     except Exception:
         pass  # never disrupt the session
     return 0
 
 
 def selftest() -> int:
-    env = envelope({"hook_event_name": "Stop", "session_id": "s1", "cwd": "/x/proj"})
-    assert env["client"] == "claude"  # every envelope labels itself as claude
+    env = envelope({"hook_event_name": "Stop", "session_id": "s1", "cwd": "/x/proj"}, "claude")
+    assert env["client"] == "claude"
     assert env["hook"]["hook_event_name"] == "Stop"  # hook forwarded verbatim
     assert env["hook"]["session_id"] == "s1"
     assert set(env.keys()) == {"client", "hook"}  # envelope is exactly {client, hook}
+    codex_env = envelope({"hook_event_name": "Stop"}, "codex")
+    assert codex_env["client"] == "codex"
     print("selftest ok")
     return 0
 

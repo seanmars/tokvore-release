@@ -1,6 +1,6 @@
 {
   "name": "tokvore-notify",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Bridge Claude Code 'waiting for input' hook events to tokvore's /notify so you get a clickable, focus-on-click notification.",
   "author": {
     "name": "seanmars"

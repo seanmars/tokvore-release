@@ -1,6 +1,6 @@
 # tokvore-notify
 
-把 Claude Code 的 hook 事件原封不動轉發給 tokvore 的 `POST /hooks`, 由 tokvore
+把 agent hook 事件原封不動轉發給 tokvore 的 `POST /hooks`, 由 tokvore
 backend 解讀; 當事件代表「需要使用者回應 / 等待輸入」時, backend 會跳出通知,
 讓你離開終端機也能點擊聚焦回該 session.
 
@@ -9,17 +9,18 @@ backend 解讀; 當事件代表「需要使用者回應 / 等待輸入」時, ba
 ```
 hooks.json ─stdin─▶ bridge.py
                        │  讀事件 → 讀 port → 原封轉發 (不解析)
-                       ▼  POST /hooks  { "client": "claude", "hook": <原始事件> }
+                       ▼  POST /hooks  { "client": "claude|codex", "hook": <原始事件> }
                     tokvore  POST /hooks
                        │  依 client 選 interpreter → 解讀 + 過濾 + 通知
                        ▼
                     in-app toast / events 面板
 ```
 
-- 這個 plugin 是 Claude 專屬的: hook 的事件型別與內容本來就因 agent 而異, 所以
-  每個 agent 各自有自己的 hook plugin。envelope 的 `client` 欄位固定為 `"claude"`,
-  backend 以它選擇對應 interpreter; 未知/不支援的 client 會被拒 (HTTP 400)。
-- `bridge.py` 只做一件事且**不做任何解析**: 讀 stdin 的 Claude Code hook 事件,
+- 這個 plugin 可用於 Claude / Codex hook。hook 的事件型別與內容本來就因 agent
+  而異, 所以呼叫 `bridge.py` 時用 `--client claude|codex` 標記來源; 未帶參數時
+  預設為 `"claude"`。backend 以它選擇對應 interpreter; 未知/不支援的 client 會被拒
+  (HTTP 400)。
+- `bridge.py` 只做一件事且**不做任何解析**: 讀 stdin 的 agent hook 事件,
   `json.loads` 驗證為合法 JSON 後包成 `{ client, hook }` envelope, 從
   `~/.config/tokvore/settings.json` 的 `apiPort` 取 port (讀不到則用預設 `6789`),
   然後 POST。所有錯誤靜默 (tokvore 沒開也不影響 Claude)。
@@ -62,16 +63,17 @@ claude --plugin-dir ./plugins/tokvore-notify
 ```json
 {
   "hooks": {
-    "Stop": [{ "hooks": [{ "type": "command", "command": "uv run D:/workspace/seanmars/tokvore-release/plugins/tokvore-notify/hooks/bridge.py" }] }]
+    "Stop": [{ "hooks": [{ "type": "command", "command": "uv run D:/workspace/seanmars/tokvore-release/plugins/tokvore-notify/scripts/bridge.py" }] }]
   }
 }
 ```
 
 (其餘 Notification / PermissionRequest / PreToolUse 比照, PreToolUse 加
-`"matcher": "AskUserQuestion|ExitPlanMode"`。)
+`"matcher": "AskUserQuestion|ExitPlanMode"`。Codex hook 請在 command 後加
+`--client codex`。)
 
 ## 自我測試
 
 ```
-uv run plugins/tokvore-notify/hooks/bridge.py --selftest
+uv run plugins/tokvore-notify/scripts/bridge.py --selftest
 ```
