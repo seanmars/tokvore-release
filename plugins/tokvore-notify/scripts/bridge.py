@@ -12,11 +12,19 @@ tokvore's loopback `/hooks` endpoint, wrapped in an envelope:
 
     { "client": "claude", "hook": <the raw hook event> }
 
-This bridge does NO interpretation: it does not pick which events matter, does
-not extract sessionId/title/body, and does not build any notification text. All
-of that now lives in the tokvore backend's per-client interpreter, so behavior
-can change without reinstalling the plugin and the backend can do richer parsing
-on the full payload.
+The only field this bridge ADDS is `hook.pid` -- this bridge process's own pid --
+when the payload lacks one. The bridge runs as a descendant of the agent process
+and shares its console, so tokvore's host resolver can walk from this pid up to the
+hosting terminal / IDE window and register the session for click-to-focus. Codex
+hooks carry no pid and Codex exposes none via env, so without this a Codex session
+is listed but not focusable; Claude ignores it (its own `~/.claude/sessions`
+descriptor already carries the real pid).
+
+Beyond that the bridge does NO interpretation: it does not pick which events matter,
+does not extract sessionId/title/body, and does not build any notification text. All
+of that lives in the tokvore backend's per-client interpreter, so behavior can change
+without reinstalling the plugin and the backend can do richer parsing on the full
+payload.
 
 `client` defaults to "claude" and can be selected with `--client`. The backend
 routes by this field to the matching interpreter; an unknown client is rejected
@@ -62,6 +70,15 @@ def api_port() -> int:
     return DEFAULT_PORT
 
 
+def with_pid(hook: dict) -> dict:
+    """Add this bridge process's pid to the hook (for tokvore focus registration),
+    without clobbering an existing pid. The backend walks from this pid up to the
+    hosting terminal/IDE. Non-dict payloads are returned unchanged."""
+    if isinstance(hook, dict):
+        hook.setdefault("pid", os.getpid())
+    return hook
+
+
 def envelope(hook: dict, client: str) -> dict:
     """Wrap a raw hook event in the {client, hook} forwarding envelope."""
     return {"client": client, "hook": hook}
@@ -89,9 +106,10 @@ def main(argv: list[str]) -> int:
         raw = sys.stdin.read()
         if not raw.strip():
             return 0  # nothing on stdin -> nothing to forward
-        # Parse only to validate well-formed JSON and re-wrap cleanly; no
-        # semantics are extracted here -- the backend does all interpretation.
-        hook = json.loads(raw)
+        # Parse only to validate well-formed JSON and re-wrap cleanly; the only
+        # mutation is adding this bridge's pid for focus registration -- no
+        # semantics are extracted here, the backend does all interpretation.
+        hook = with_pid(json.loads(raw))
         post_hook(hook, args.client)
     except Exception:
         pass  # never disrupt the session
@@ -106,6 +124,10 @@ def selftest() -> int:
     assert set(env.keys()) == {"client", "hook"}  # envelope is exactly {client, hook}
     codex_env = envelope({"hook_event_name": "Stop"}, "codex")
     assert codex_env["client"] == "codex"
+    # pid injection: added when absent, never clobbers an existing pid.
+    assert with_pid({"hook_event_name": "Stop"})["pid"] == os.getpid()
+    assert with_pid({"pid": 123})["pid"] == 123
+    assert with_pid("not-a-dict") == "not-a-dict"  # non-dict passes through
     print("selftest ok")
     return 0
 

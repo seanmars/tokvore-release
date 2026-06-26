@@ -1,6 +1,26 @@
 {
   "hooks": {
-    "Stop": [
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${PLUGIN_ROOT}/scripts/bridge.py --client codex"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${PLUGIN_ROOT}/scripts/bridge.py --client codex"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
       {
         "hooks": [
           {
@@ -11,6 +31,66 @@
       }
     ],
     "PermissionRequest": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${PLUGIN_ROOT}/scripts/bridge.py --client codex"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${PLUGIN_ROOT}/scripts/bridge.py --client codex"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${PLUGIN_ROOT}/scripts/bridge.py --client codex"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${PLUGIN_ROOT}/scripts/bridge.py --client codex"
+          }
+        ]
+      }
+    ],
+    "SubagentStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${PLUGIN_ROOT}/scripts/bridge.py --client codex"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "uv run ${PLUGIN_ROOT}/scripts/bridge.py --client codex"
+          }
+        ]
+      }
+    ],
+    "Stop": [
       {
         "hooks": [
           {
