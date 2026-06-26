@@ -29,11 +29,19 @@ hooks.json ─stdin─▶ bridge.py
 
 ## 涵蓋事件 (只收「等待輸入」類)
 
-訂閱維持窄的範圍 (見 `hooks/hooks.json`): Stop、Notification、PermissionRequest、
-PreToolUse (`AskUserQuestion` / `ExitPlanMode`)。實際是否通知由 backend 判斷:
-Stop、Notification 的 `idle_prompt` / `elicitation_dialog`、上述 PreToolUse、
-PermissionRequest 會通知; 其餘 (含 Notification 的 `permission_prompt`, 由
-PermissionRequest 負責) 不通知。
+訂閱維持窄的範圍, 實際是否通知與文案由 backend interpreter 判斷, 兩個 client 的
+hook 事件型別本就不同, 故訂閱範圍各自獨立:
+
+**Claude** (`hooks/hooks.json`): Stop、Notification、PermissionRequest、PreToolUse
+(`AskUserQuestion` / `ExitPlanMode`)。會通知: Stop、Notification 的 `idle_prompt` /
+`elicitation_dialog`、上述 PreToolUse、PermissionRequest; 其餘 (含 Notification 的
+`permission_prompt`, 由 PermissionRequest 負責) 不通知。
+
+**Codex** (`codex-hooks/hooks.json`): 只訂 Stop 與 PermissionRequest (Codex 沒有
+`AskUserQuestion`/`ExitPlanMode`, 訂 PreToolUse 只會空轉)。通知時會帶上「相關問題」:
+Stop 顯示 agent 的 `last_assistant_message` (最後一句, 通常就是問題/摘要), 為空才退回
+"Awaiting your input"; PermissionRequest 顯示 `tool_name` 並在有 `tool_input.command`
+時附上命令預覽。
 
 ## 安裝
 

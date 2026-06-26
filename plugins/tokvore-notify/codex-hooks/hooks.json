@@ -10,29 +10,8 @@
         ]
       }
     ],
-    "Notification": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run ${PLUGIN_ROOT}/scripts/bridge.py --client codex"
-          }
-        ]
-      }
-    ],
     "PermissionRequest": [
       {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "uv run ${PLUGIN_ROOT}/scripts/bridge.py --client codex"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "AskUserQuestion|ExitPlanMode",
         "hooks": [
           {
             "type": "command",

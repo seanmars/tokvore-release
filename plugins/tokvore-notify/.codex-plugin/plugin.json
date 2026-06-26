@@ -1,7 +1,7 @@
 {
   "name": "tokvore-notify",
   "hooks": "./codex-hooks/hooks.json",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Bridge Codex 'waiting for input' hook events to tokvore's /notify so you get a clickable, focus-on-click notification.",
   "author": {
     "name": "seanmars"
